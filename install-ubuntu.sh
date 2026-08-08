@@ -10,7 +10,7 @@ SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 ENV_FILE="${CONFIG_DIR}/${SERVICE_NAME}.env"
 PACKAGE_DIR="${PACKAGE_DIR:-}"
 SERVER_HOST="${SERVER_HOST:-0.0.0.0}"
-SERVER_PORT="${SERVER_PORT:-8080}"
+SERVER_PORT="${SERVER_PORT:-1122}"
 TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
 COMMAND="install"
 YES=0
@@ -36,7 +36,7 @@ Options:
   --package-dir <dir>  Release archive root (auto-detected by default)
   --install-dir <dir> Installation directory (default: /opt/sub2api)
   --host <address>    Listen address (default: 0.0.0.0)
-  --port <port>       Listen port (default: 8080)
+  --port <port>       Listen port (default: 1122)
   --timezone <name>   Timezone (default: Asia/Shanghai)
   --force-config      Replace config.yaml after backing it up
   --open-firewall     Add a UFW TCP rule for the selected port when UFW is active
