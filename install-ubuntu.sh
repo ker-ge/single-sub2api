@@ -114,8 +114,14 @@ validate_settings() {
   safe_install_path "$INSTALL_DIR"
   [[ "$SERVER_PORT" =~ ^[0-9]+$ ]] || die "Port must be numeric: $SERVER_PORT"
   [ "$SERVER_PORT" -ge 1 ] && [ "$SERVER_PORT" -le 65535 ] || die "Port must be between 1 and 65535"
+  SERVER_HOST="${SERVER_HOST//$'\r'/}"
+  SERVER_HOST="${SERVER_HOST#"${SERVER_HOST%%[![:space:]]*}"}"
+  SERVER_HOST="${SERVER_HOST%"${SERVER_HOST##*[![:space:]]}"}"
   [ -n "$SERVER_HOST" ] || die "Host cannot be empty"
-  [[ "$SERVER_HOST" =~ ^[A-Za-z0-9._:\[\]-]+$ ]] || die "Host contains unsupported characters"
+  case "$SERVER_HOST" in
+    \[*\]) ;;
+    *[!A-Za-z0-9._:%-]*) die "Host contains unsupported characters: $(printf '%q' "$SERVER_HOST")" ;;
+  esac
   [ -n "$TIMEZONE" ] || die "Timezone cannot be empty"
 }
 
