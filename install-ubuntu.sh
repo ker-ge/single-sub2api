@@ -96,7 +96,14 @@ safe_install_path() {
 
 resolve_package_dir() {
   if [ -z "$PACKAGE_DIR" ]; then
-    PACKAGE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)" || die "Cannot locate release archive root"
+    local script_dir legacy_dir
+    script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || die "Cannot locate release directory"
+    if [ -f "$script_dir/sub2api" ]; then
+      PACKAGE_DIR="$script_dir"
+    else
+      legacy_dir="$(cd -- "$script_dir/../.." 2>/dev/null && pwd)" || die "Cannot locate release directory"
+      PACKAGE_DIR="$legacy_dir"
+    fi
   else
     PACKAGE_DIR="$(cd -- "$PACKAGE_DIR" 2>/dev/null && pwd)" || die "Package directory does not exist: $PACKAGE_DIR"
   fi
@@ -425,4 +432,3 @@ main() {
 }
 
 main "$@"
-
