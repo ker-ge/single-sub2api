@@ -290,7 +290,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=$INSTALL_DIR/data $INSTALL_DIR/logs $INSTALL_DIR/backups $INSTALL_DIR/config.yaml $INSTALL_DIR/.installed
+ReadWritePaths=$INSTALL_DIR/data $INSTALL_DIR/logs $INSTALL_DIR/backups $INSTALL_DIR/config.yaml
 
 [Install]
 WantedBy=multi-user.target
