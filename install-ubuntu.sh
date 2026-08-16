@@ -221,21 +221,12 @@ server:
   mode: release
 
 database:
-  driver: sqlite
   file: data/sub2api.db
   busy_timeout_ms: 5000
-  max_open_conns: 1
-  max_idle_conns: 1
-
-lightweight:
-  virtual_token_price_cny: 1
 
 jwt:
   secret: "$secret"
   expire_hour: 24
-
-dashboard_aggregation:
-  enabled: false
 EOF
   chown "$SERVICE_USER:$SERVICE_USER" "$config_file"
   chmod 640 "$config_file"
