@@ -1,4 +1,4 @@
-# Sub2API 0.1.141 上线包
+# Sub2API 0.1.142 上线包
 
 平台：Linux amd64 / x86_64（Ubuntu + systemd）。程序已内嵌前端，无需 Go、Node、Docker 或单独部署网页。
 
