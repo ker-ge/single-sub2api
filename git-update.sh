@@ -18,17 +18,16 @@ exec 9>"$TARGET_DIR/.git-update.lock"
 flock -n 9 || fail "Another Git update is running"
 TEMP_DIR="$(mktemp -d "$TARGET_DIR/.sub2api-git-update.XXXXXX")"
 trap 'rm -rf -- "$TEMP_DIR"' EXIT
-REPO_DIR="$TARGET_DIR/.update-git"
-if [ -e "$REPO_DIR" ]; then
-  [ -d "$REPO_DIR/objects" ] && [ ! -L "$REPO_DIR" ] || fail "Invalid update Git cache"
-else
-  git init --bare "$REPO_DIR" >/dev/null
-fi
-git -C "$REPO_DIR" -c credential.helper= -c core.hooksPath=/dev/null -c fetch.fsckObjects=true fetch --no-tags --depth=1 "$REPOSITORY" "$EXPECTED_COMMIT"
-ACTUAL_COMMIT="$(git -C "$REPO_DIR" rev-parse 'FETCH_HEAD^{commit}')"
+REPO_DIR="$TEMP_DIR/repository"
+printf '[STEP] git pull: downloading %s from the prebuilt repository (timeout: 7 minutes)\n' "$TAG"
+git init -q "$REPO_DIR"
+git -C "$REPO_DIR" remote add origin "$REPOSITORY"
+timeout --foreground --kill-after=5 420 git -C "$REPO_DIR" -c credential.helper= -c core.hooksPath=/dev/null -c core.autocrlf=false -c fetch.fsckObjects=true -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=45 pull --ff-only --no-tags --depth=1 --progress origin "$EXPECTED_COMMIT" || fail "git pull failed or timed out; check server GitHub connectivity and proxy settings"
+ACTUAL_COMMIT="$(git -C "$REPO_DIR" rev-parse 'HEAD^{commit}')"
 [ "$ACTUAL_COMMIT" = "$EXPECTED_COMMIT" ] || fail "Downloaded commit does not match selected tag"
 git -C "$REPO_DIR" fsck --strict --no-reflogs "$EXPECTED_COMMIT" >/dev/null
-REMOTE_REFS="$(git -c credential.helper= ls-remote "$REPOSITORY" "refs/tags/$TAG" "refs/tags/$TAG^{}")"
+printf '[STEP] Verifying Git commit and binary architecture\n'
+REMOTE_REFS="$(timeout --foreground --kill-after=5 30 git -c credential.helper= -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=20 ls-remote "$REPOSITORY" "refs/tags/$TAG" "refs/tags/$TAG^{}")"
 REMOTE_COMMIT="$(printf '%s\n' "$REMOTE_REFS" | awk -v tag="refs/tags/$TAG" '$2 == tag { direct=$1 } $2 == tag "^{}" { peeled=$1 } END { print peeled ? peeled : direct }')"
 [ "$REMOTE_COMMIT" = "$EXPECTED_COMMIT" ] || fail "Tag was moved or deleted; check updates again"
 ENTRY="$(git -C "$REPO_DIR" ls-tree "$EXPECTED_COMMIT" -- sub2api)"
@@ -47,6 +46,7 @@ chmod 750 "$NEW_BINARY"
 VERSION_OUTPUT="$(timeout 10 "$NEW_BINARY" -version 2>&1)" || fail "Cannot read binary version"
 VERSION="$(printf '%s\n' "$VERSION_OUTPUT" | sed -nE 's/.*Sub2API ([^ ]+) .*/\1/p' | head -n 1)"
 [ "$VERSION" = "${TAG#v}" ] || fail "Binary version ($VERSION) does not match tag ($TAG); rebuild with -X main.Version=${TAG#v}"
+printf '[STEP] Backing up and installing the verified binary; database and ports remain unchanged\n'
 cp -p -- "$TARGET" "$TEMP_DIR/previous"
 mv -fT -- "$TEMP_DIR/previous" "$TARGET.backup"
 mv -fT -- "$NEW_BINARY" "$TARGET"
