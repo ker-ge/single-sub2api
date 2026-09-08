@@ -33,7 +33,7 @@ Usage:
   sudo bash deploy/linux/install-ubuntu.sh uninstall [--purge]
 
 Options:
-  --package-dir <dir>  Release archive root (auto-detected by default)
+  --package-dir <dir>  Prebuilt Git repository or archive root (auto-detected)
   --install-dir <dir> Installation directory (default: /opt/sub2api)
   --host <address>    Listen address (default: 0.0.0.0)
   --port <port>       Listen port (default: 1122)
@@ -168,8 +168,10 @@ prune_backups() {
 backup_current_files() {
   local stamp database backup
   stamp="$(date +%Y%m%d-%H%M%S)"
-  if [ -f "$INSTALL_DIR/sub2api" ]; then
-    cp -a "$INSTALL_DIR/sub2api" "$INSTALL_DIR/backups/sub2api.$stamp"
+  local previous_binary="$INSTALL_DIR/bin/sub2api"
+  [ -f "$previous_binary" ] || previous_binary="$INSTALL_DIR/sub2api"
+  if [ -f "$previous_binary" ]; then
+    cp -a "$previous_binary" "$INSTALL_DIR/backups/sub2api.$stamp"
     prune_backups 'sub2api.[0-9]*' 5
   fi
   if [ -f "$INSTALL_DIR/config.yaml" ]; then
@@ -248,8 +250,13 @@ EOF
 
 install_assets() {
   install -d -m 755 "$INSTALL_DIR" "$INSTALL_DIR/deploy/linux" "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/backups"
-  install -m 755 -o root -g root "$PACKAGE_DIR/sub2api" "$INSTALL_DIR/sub2api.new"
-  mv -f "$INSTALL_DIR/sub2api.new" "$INSTALL_DIR/sub2api"
+  install -d -m 750 -o "$SERVICE_USER" -g "$SERVICE_USER" "$INSTALL_DIR/bin"
+  install -m 750 -o "$SERVICE_USER" -g "$SERVICE_USER" "$PACKAGE_DIR/sub2api" "$INSTALL_DIR/bin/sub2api.new"
+  mv -f "$INSTALL_DIR/bin/sub2api.new" "$INSTALL_DIR/bin/sub2api"
+  local update_script="$PACKAGE_DIR/git-update.sh"
+  [ -f "$update_script" ] || update_script="$PACKAGE_DIR/deploy/linux/git-update.sh"
+  [ -f "$update_script" ] || die "Missing git-update.sh; upload the Git update helper with the binary"
+  install -m 755 -o root -g root "$update_script" "$INSTALL_DIR/deploy/linux/git-update.sh"
   if [ -f "$PACKAGE_DIR/deploy/linux/install-ubuntu.sh" ]; then
     install -m 755 -o root -g root "$PACKAGE_DIR/deploy/linux/install-ubuntu.sh" "$INSTALL_DIR/deploy/linux/install-ubuntu.sh"
   fi
@@ -270,18 +277,20 @@ Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
-ExecStart=$INSTALL_DIR/sub2api
+ExecStart=$INSTALL_DIR/bin/sub2api
 Restart=always
 RestartSec=3
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=sub2api
 EnvironmentFile=-$ENV_FILE
+Environment=SUB2API_ONLINE_UPDATE=true
+Environment=SUB2API_UPDATE_SCRIPT=$INSTALL_DIR/deploy/linux/git-update.sh
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=$INSTALL_DIR/data $INSTALL_DIR/logs $INSTALL_DIR/backups $INSTALL_DIR/config.yaml
+ReadWritePaths=$INSTALL_DIR/bin $INSTALL_DIR/data $INSTALL_DIR/logs $INSTALL_DIR/backups $INSTALL_DIR/config.yaml
 
 [Install]
 WantedBy=multi-user.target
@@ -371,6 +380,12 @@ install_or_upgrade() {
   resolve_package_dir
   validate_settings
   require_systemd
+  if ! command -v git >/dev/null || ! command -v flock >/dev/null; then
+    command -v apt-get >/dev/null || die "Install git and util-linux before continuing"
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y git ca-certificates util-linux
+  fi
+  [ -f "$PACKAGE_DIR/git-update.sh" ] || [ -f "$PACKAGE_DIR/deploy/linux/git-update.sh" ] || die "Missing git-update.sh; upload the update helper first"
   detect_arch >/dev/null
   confirm_install
   create_service_user
@@ -387,7 +402,8 @@ install_or_upgrade() {
   ok "Sub2API is installed and listening directly on http://$SERVER_HOST:$SERVER_PORT"
   printf 'Status: systemctl status %s\n' "$SERVICE_NAME"
   printf 'Logs:   journalctl -u %s -f\n' "$SERVICE_NAME"
-  printf 'Login:  complete the first-run setup or use the lightweight default admin (123456@admin.com / 123456)\n'
+  printf 'Login:  use your existing administrator email and password; upgrading never resets credentials.\n'
+  printf 'Only a newly initialized empty database uses 123456@admin.com / 123456. Change that password immediately after first login.\n'
 }
 
 uninstall_app() {
@@ -411,7 +427,7 @@ uninstall_app() {
     groupdel "$SERVICE_USER" >/dev/null 2>&1 || true
     ok "Service and all Sub2API files were removed"
   else
-    rm -f "$INSTALL_DIR/sub2api"
+    rm -f "$INSTALL_DIR/sub2api" "$INSTALL_DIR/bin/sub2api" "$INSTALL_DIR/bin/sub2api.backup"
     ok "Service and binary removed; data, config, and backups remain in $INSTALL_DIR"
   fi
 }

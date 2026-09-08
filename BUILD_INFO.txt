@@ -1,0 +1,16 @@
+Product: Sub2API lightweight
+Version: 0.1.139
+Required Git tag: v0.1.139
+Target: linux/amd64
+CGO: disabled
+Embedded frontend: yes
+Build time (UTC): 2026-09-08T03:10:52Z
+Source base commit: 1f5264d5332319c0cf20fdcb28d49985bd34d36f
+Source status: includes local staged and unstaged changes; not a clean tagged build
+Binary commit label: 1f5264d5332319c0cf20fdcb28d49985bd34d36f-worktree
+Build type: release
+Deployment port example: 9000 (requires explicit --port 9000 when reinstalling)
+Credentials: existing database passwords remain unchanged
+Validation: relevant frontend/backend tests and mock-assisted Git integration test passed
+Linux validation: cross-compiled, not executed on a live Linux/systemd host
+Remote actions: no Git push, tag creation, Release publication, or server deployment performed
