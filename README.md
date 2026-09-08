@@ -1,4 +1,4 @@
-# Sub2API 0.1.140 上线包
+# Sub2API 0.1.141 上线包
 
 平台：Linux amd64 / x86_64（Ubuntu + systemd）。程序已内嵌前端，无需 Go、Node、Docker 或单独部署网页。
 
@@ -19,7 +19,6 @@
 ```bash
 cd /www/wwwroot/single-sub2api
 uname -m
-sha256sum -c SHA256SUMS
 chmod +x sub2api install-ubuntu.sh git-update.sh
 ./sub2api -version
 sudo bash install-ubuntu.sh upgrade -y --host 0.0.0.0 --port 9000
@@ -41,7 +40,7 @@ uname -m 必须显示 x86_64；若是 aarch64/arm64，不要使用此包。校�
 
 ## Git 发布
 
-本包程序内版本为 0.1.138，对应 Git 标签必须为 v0.1.138。先把本包中的成品文件更新到你的成品仓库，提交并 push 后，再在该提交上创建并推送此标签。这里不含源码、.git 或任何发布令牌。
+本包程序内版本为 0.1.141，对应 Git 标签必须为 v0.1.141。先把本包中的成品文件更新到你的成品仓库，提交并 push 后，再在该提交上创建并推送此标签。不要移动已发布的旧标签。
 
 初次接入需要包含 install-ubuntu.sh 和 git-update.sh；以后修改 helper 或 systemd 配置时，也要管理员显式重新运行安装器。平常更新只替换 sub2api 二进制。
 
@@ -55,4 +54,4 @@ uname -m 必须显示 x86_64；若是 aarch64/arm64，不要使用此包。校�
 
 本包已完成前端构建、相关自动测试、Git 脚本集成测试、Linux amd64 交叉编译及包内容校验。当前打包机器为 Windows，尚未在真实 Linux/systemd 主机上完成启动与升级重启演练。Git 脚本测试中的 Linux/执行探测使用了模拟。
 
-详细 Git 更新说明见 ONLINE_UPDATE.md；构建来源见 BUILD_INFO.txt。
+本版修复点击“立即更新”后确认框一闪而过的问题。旧页面有此问题时，需先手动部署本版程序，再使用修复后的在线更新入口。
