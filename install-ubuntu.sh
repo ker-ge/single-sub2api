@@ -9,6 +9,7 @@ CONFIG_DIR="${CONFIG_DIR:-/etc/sub2api}"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 ENV_FILE="${CONFIG_DIR}/${SERVICE_NAME}.env"
 PACKAGE_DIR="${PACKAGE_DIR:-}"
+PACKAGE_BINARY=""
 SERVER_HOST="${SERVER_HOST:-0.0.0.0}"
 SERVER_PORT="${SERVER_PORT:-1122}"
 TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
@@ -95,10 +96,12 @@ safe_install_path() {
 }
 
 resolve_package_dir() {
+  local arch
+  arch="$(detect_arch)" || return 1
   if [ -z "$PACKAGE_DIR" ]; then
     local script_dir legacy_dir
     script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || die "Cannot locate release directory"
-    if [ -f "$script_dir/sub2api" ]; then
+    if [ -f "$script_dir/sub2api" ] || [ -f "$script_dir/sub2api-$arch" ]; then
       PACKAGE_DIR="$script_dir"
     else
       legacy_dir="$(cd -- "$script_dir/../.." 2>/dev/null && pwd)" || die "Cannot locate release directory"
@@ -107,7 +110,11 @@ resolve_package_dir() {
   else
     PACKAGE_DIR="$(cd -- "$PACKAGE_DIR" 2>/dev/null && pwd)" || die "Package directory does not exist: $PACKAGE_DIR"
   fi
-  [ -f "$PACKAGE_DIR/sub2api" ] || die "Missing release binary: $PACKAGE_DIR/sub2api"
+  PACKAGE_BINARY="$PACKAGE_DIR/sub2api-$arch"
+  if [ ! -e "$PACKAGE_BINARY" ] && [ ! -L "$PACKAGE_BINARY" ]; then
+    PACKAGE_BINARY="$PACKAGE_DIR/sub2api"
+  fi
+  [ -f "$PACKAGE_BINARY" ] && [ ! -L "$PACKAGE_BINARY" ] || die "Missing regular release binary: $PACKAGE_BINARY"
 }
 
 validate_settings() {
@@ -134,16 +141,20 @@ detect_arch() {
 }
 
 validate_binary_architecture() {
-  local arch expected magic machine
+  local arch magic class endian machine
   command -v od >/dev/null 2>&1 || die "od is required to validate the release binary"
   arch="$(detect_arch)"
-  magic="$(od -An -N4 -tx1 "$PACKAGE_DIR/sub2api" | tr -d ' \n')"
+  magic="$(od -An -N4 -tx1 "$PACKAGE_BINARY" | tr -d ' \n')"
   [ "$magic" = "7f454c46" ] || die "The release binary is not an ELF executable"
-  machine="$(od -An -j18 -N2 -tu2 "$PACKAGE_DIR/sub2api" | tr -d ' \n')"
+  class="$(od -An -j4 -N1 -tu1 "$PACKAGE_BINARY" | tr -d ' \n')"
+  endian="$(od -An -j5 -N1 -tu1 "$PACKAGE_BINARY" | tr -d ' \n')"
+  [ "$class:$endian" = 2:1 ] || die "The release binary must be 64-bit little-endian ELF"
+  machine="$(od -An -j18 -N2 -tx1 "$PACKAGE_BINARY" | tr -d ' \n')"
   case "$arch:$machine" in
-    amd64:62|arm64:183) ;;
-    *) die "Release binary architecture does not match this host ($arch, ELF machine $machine)" ;;
+    amd64:3e00|arm64:b700) ;;
+    *) die "Release binary architecture does not match this host ($arch, ELF machine $machine); upload sub2api-$arch and retry" ;;
   esac
+  info "Using $(basename -- "$PACKAGE_BINARY") for Linux $arch"
 }
 
 confirm_install() {
@@ -251,7 +262,7 @@ EOF
 install_assets() {
   install -d -m 755 "$INSTALL_DIR" "$INSTALL_DIR/deploy/linux" "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/backups"
   install -d -m 750 -o "$SERVICE_USER" -g "$SERVICE_USER" "$INSTALL_DIR/bin"
-  install -m 750 -o "$SERVICE_USER" -g "$SERVICE_USER" "$PACKAGE_DIR/sub2api" "$INSTALL_DIR/bin/sub2api.new"
+  install -m 750 -o "$SERVICE_USER" -g "$SERVICE_USER" "$PACKAGE_BINARY" "$INSTALL_DIR/bin/sub2api.new"
   mv -f "$INSTALL_DIR/bin/sub2api.new" "$INSTALL_DIR/bin/sub2api"
   local update_script="$PACKAGE_DIR/git-update.sh"
   [ -f "$update_script" ] || update_script="$PACKAGE_DIR/deploy/linux/git-update.sh"
@@ -378,6 +389,7 @@ open_firewall() {
 
 install_or_upgrade() {
   resolve_package_dir
+  validate_binary_architecture
   validate_settings
   require_systemd
   if ! command -v git >/dev/null || ! command -v flock >/dev/null; then
@@ -389,7 +401,6 @@ install_or_upgrade() {
   detect_arch >/dev/null
   confirm_install
   create_service_user
-  validate_binary_architecture
   install -d -m 755 "$INSTALL_DIR" "$INSTALL_DIR/backups"
   systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
   backup_current_files
@@ -444,4 +455,6 @@ main() {
   esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
