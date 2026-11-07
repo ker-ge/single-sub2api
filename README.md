@@ -1,8 +1,27 @@
-# Sub2API 0.1.158（Linux amd64 / ARM64）
+# Sub2API 0.1.160（Linux amd64 / ARM64）
 
 同一目录包含两种编译包：`sub2api` 供 x86_64/amd64，`sub2api-arm64` 供 aarch64/arm64。新版安装器和 Git 更新脚本自动选择，安装后的程序仍叫 sub2api，不要将 ARM64 程序覆盖到仓库的 amd64 文件上。
 
 文件完整性可在 Linux 下使用 `sha256sum -c SHA256SUMS` 校验。
+
+## 0.1.160 更新
+
+- 新增 Codex HTTP / WebSocket 配置中的模型和推理强度选择，Ultra 支持 GPT-6 Astra、GPT-6.1 Sol、GPT-6.1 Terra、GPT-6 Sol、GPT-5.6 Sol 和 GPT-5.6 Terra；Luna 不提供 Ultra。
+- 网关按映射后的上游模型转换 Ultra：Astra、6.1 Sol、6.1 Terra 使用 `xhigh`，6 Sol、5.6 Sol、5.6 Terra 使用 `max`；显式推理强度优先，并补齐别名计费及 OpenCode 配置。
+- 修复 `/v1/messages` 的账号别名映射与调度联动，优先精确映射，保留基础模型回退并按实际映射目标检查渠道限制。
+- 修复 WebSocket 多轮请求的计费模型及参数串用，重叠请求不再覆盖当前响应；有效二进制 JSON 结束事件正常结算并解除忙碌状态，支持后续请求和请求被拒后的重试。
+
+Ultra 的完整子代理协作由支持该模式的 Codex 客户端提供；网关别名及 OpenCode 选项只转换推理参数。实际可用性取决于客户端版本和上游账号权限。
+
+## 0.1.159 更新
+
+- 新增 OpenAI `gpt-image-2.6-sunburst`（精细画面与编辑）和 `gpt-image-2.6-flare`（快速生成与迭代），同步默认模型列表、账号白名单、快捷映射和价格目录。
+- GPT Image 1.5 从默认列表和预设中移除，保留旧账号配置及历史计费数据；GPT Image 2/2.5 继续保留，未指定图片模型时仍使用 `gpt-image-2`。
+- 两款 2.6 模型优先使用精确匹配的动态价格，远程目录尚未收录时使用官方兜底价，避免套用旧型号价格。
+
+标准价格为每百万 Token 文本输入 5、文本缓存读取 1.25、图片输入 8、图片输出 30 美元。图片缓存独立计费、SVG/GIF 专用计费及 OAuth 的新增图片参数转换未扩展。
+
+已有账号设置了白名单时，需勾选新模型并保存。图片生成和编辑可使用 `/v1/images/generations`、`/v1/images/edits`；实际可用性由上游账号权限决定。官方依据：[Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.6-sunburst)、[Flare](https://developers.openai.com/api/docs/models/gpt-image-2.6-flare)、[价格表](https://developers.openai.com/api/docs/pricing#image-generation)（2026-11-05 核对）。
 
 ## 0.1.158 更新
 
@@ -82,6 +101,6 @@ curl --fail http://127.0.0.1:1122/health
 
 其他服务器必须继续传原端口、服务名和安装目录，例如原端口为 9000 时使用 --port 9000。不传 --port 时安装器默认为 1122。系统和云防火墙均须放行所用 TCP 端口。网页确认更新会自动重启，沿用已有 systemd 端口。
 
-两个程序内版本均为 0.1.158。将两个成品、脚本、说明及 SHA256SUMS 一并提交并 push，在同一提交上创建并推送新标签 v0.1.158，不移动旧标签。已安装新版多架构 helper 的服务器可在版本弹窗确认更新。旧标签若只有 amd64 文件，ARM64 在线更新会安全拒绝。尚未替你 push、打标签或部署服务器。
+两个程序内版本均为 0.1.160。将两个成品、脚本、说明及 SHA256SUMS 一并提交并 push，在同一提交上创建并推送新标签 v0.1.160，不移动旧标签。已安装新版多架构 helper 的服务器可在版本弹窗确认更新。旧标签若只有 amd64 文件，ARM64 在线更新会安全拒绝。尚未替你 push、打标签或部署服务器。
 
 查询故障：sudo journalctl -u sub2api -n 150 --no-pager。回滚只恢复上一版程序，不恢复数据库，回滚后仍需确认重启。
