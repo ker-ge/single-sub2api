@@ -1,8 +1,22 @@
-# Sub2API 0.1.162（Linux amd64 / ARM64）
+# Sub2API 0.1.163（Linux amd64 / ARM64）
 
 同一目录包含两种编译包：`sub2api` 供 x86_64/amd64，`sub2api-arm64` 供 aarch64/arm64。新版安装器和 Git 更新脚本自动选择，安装后的程序仍叫 sub2api，不要将 ARM64 程序覆盖到仓库的 amd64 文件上。
 
 文件完整性可在 Linux 下使用 `sha256sum -c SHA256SUMS` 校验。
+
+## 0.1.163 更新
+
+- 调整 Codex 生图桥接提示，区分模型已返回图片和客户端未自动保存文件，避免因空展示或缺少默认目录而重复生图。
+- 提供可选本地恢复工具 `recover-codex-image.py`，按明确的会话文件和图片 ID 恢复 PNG、JPEG、WebP，校验图片格式并拒绝覆盖已有文件。
+- 此版本是兼容补救，不代表 Codex 原生图片保存流程已修复；服务器无法直接读取用户电脑上的会话文件。
+
+本地恢复需要 Python 和 Pillow。在运行 Codex 的电脑上执行，例如：
+
+```powershell
+python -B recover-codex-image.py --session "C:/path/to/session.jsonl" --image-id "ig_example" --output "C:/path/to/image.png"
+```
+
+输出扩展名须与实际图片格式匹配（`.png`、`.jpg` / `.jpeg`、`.webp`）。工具不会重新调用生图接口。
 
 ## 0.1.162 更新
 
@@ -117,6 +131,6 @@ curl --fail http://127.0.0.1:1122/health
 
 其他服务器必须继续传原端口、服务名和安装目录，例如原端口为 9000 时使用 --port 9000。不传 --port 时安装器默认为 1122。系统和云防火墙均须放行所用 TCP 端口。网页确认更新会自动重启，沿用已有 systemd 端口。
 
-两个程序内版本均为 0.1.162。将两个成品、脚本、说明及 SHA256SUMS 一并提交并 push，在同一提交上创建并推送新标签 v0.1.162，不移动旧标签。已安装新版多架构 helper 的服务器可在版本弹窗确认更新。旧标签若只有 amd64 文件，ARM64 在线更新会安全拒绝。发布到 GitHub 后，服务器仍需在版本弹窗确认更新或手动执行更新命令。
+两个程序内版本均为 0.1.163。将两个成品、脚本、说明及 SHA256SUMS 一并提交并 push，在同一提交上创建并推送新标签 v0.1.163，不移动旧标签。已安装新版多架构 helper 的服务器可在版本弹窗确认更新。旧标签若只有 amd64 文件，ARM64 在线更新会安全拒绝。发布到 GitHub 后，服务器仍需在版本弹窗确认更新或手动执行更新命令。
 
 查询故障：sudo journalctl -u sub2api -n 150 --no-pager。回滚只恢复上一版程序，不恢复数据库，回滚后仍需确认重启。
